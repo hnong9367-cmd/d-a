@@ -1,0 +1,1489 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Player</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.10/katex.min.css" />
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.10/katex.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+    <style>
+        :root {
+            --primary-bg: #f4f6f9;
+            --secondary-bg: #ffffff;
+            --text-color: #212529;
+            --primary-color: #007bff;
+            --secondary-color: #6c757d;
+            --success-color: #28a745;
+            --danger-color: #dc3545;
+            --border-radius: 8px;
+            --box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: var(--primary-bg); color: var(--text-color); margin: 0; padding: 15px; }
+        .container { max-width: 800px; margin: auto; background-color: var(--secondary-bg); padding: 20px; border-radius: var(--border-radius); box-shadow: var(--box-shadow); overflow-y: auto; max-height: 95vh; position: relative; }
+        .screen { display: none; }
+        .screen.active { display: block; }
+        h1, h2, h3 { text-align: center; color: var(--primary-color); }
+        .btn { padding: 12px; font-size: 16px; font-weight: bold; color: white; background-color: var(--primary-color); border: none; border-radius: var(--border-radius); cursor: pointer; text-align: center; transition: background-color 0.2s; text-decoration: none; display: inline-block; width: 100%; }
+        .btn:hover { background-color: #0056b3; }
+        .btn:disabled { background-color: #a0c3e6; cursor: not-allowed; }
+        .button-group { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+        .question-container { margin-bottom: 25px; border-bottom: 1px solid #eee; padding-bottom: 15px; }
+        .options-container label { display: flex; align-items: center; margin-bottom: 10px; padding: 12px; border: 1px solid #ddd; border-radius: 5px; cursor: pointer; transition: background-color 0.2s; }
+        .options-container label:hover { background-color: #f0f0f0; }
+        .question-text { font-size: 18px; margin-bottom: 15px; font-weight: bold; line-height: 1.6; }
+        .question-text img, .question-image { max-width: 100%; height: auto; display: block; margin: 10px auto; border: 1px solid #ddd; padding: 4px; border-radius: 4px; }
+        .user-greeting { text-align: center; margin-bottom: 20px; font-size: 1.1em; color: var(--secondary-color); }
+        .short-answer-input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 16px; }
+
+        /* CSS CHO MENU CÀI ĐẶT */
+        #settings-icon-container { position: absolute; top: 15px; right: 20px; cursor: pointer; z-index: 100; padding: 5px; }
+        .hamburger-line { width: 25px; height: 3px; background-color: var(--secondary-color); margin: 5px 0; transition: 0.3s; }
+        #settings-panel { display: none; position: absolute; top: 50px; right: 20px; background-color: var(--secondary-bg); border-radius: var(--border-radius); box-shadow: var(--box-shadow); padding: 15px; z-index: 99; min-width: 250px; border: 1px solid #eee; }
+        .settings-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+        .settings-row label { font-size: 15px; color: var(--text-color); }
+        .settings-row .icon-btn { background: none; border: none; cursor: pointer; padding: 5px; }
+        .settings-row .icon-btn svg { width: 24px; height: 24px; fill: var(--secondary-color); }
+        #detailed-audio-settings { display: none; padding-left: 20px; border-left: 2px solid #f0f0f0; margin-left: 10px; margin-top: 10px; }
+        .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--primary-color); }
+        input:checked + .slider:before { transform: translateX(20px); }
+
+        /* === CSS CHO CÂU HỎI TRUE/FALSE === */
+        .tf-option {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: var(--border-radius);
+            margin-bottom: 10px;
+        }
+        .tf-statement {
+            flex-grow: 1;
+            margin-right: 15px;
+        }
+        .tf-buttons {
+            flex-shrink: 0;
+        }
+        .tf-btn {
+            padding: 8px 16px;
+            border: 1px solid var(--secondary-color);
+            background-color: white;
+            color: var(--secondary-color);
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+            min-width: 80px;
+            text-align: center;
+        }
+        .tf-btn.selected-true {
+            background-color: var(--success-color);
+            color: white;
+            border-color: var(--success-color);
+        }
+        .tf-btn.selected-false {
+            background-color: var(--danger-color);
+            color: white;
+            border-color: var(--danger-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="login-screen" class="screen active">
+            <h1>Chào mừng!</h1>
+            <p style="text-align: center; margin-bottom: 20px;">Vui lòng nhập tên của bạn để bắt đầu.</p>
+            <input type="text" id="username-input" placeholder="Nhập tên của bạn..." class="w-full p-2 border rounded mb-4">
+            <div class="button-group"><button id="login-btn" class="btn">Vào Menu Chính</button></div>
+        </div>
+        <div id="home-screen" class="screen">
+            <h1>Quiz Player (Offline)</h1>
+            <p id="user-greeting" class="user-greeting"></p>
+            <div class="button-group">
+                <button class="btn btn-success" onclick="showScreen('pre-quiz-menu-screen')">Bắt đầu làm bài</button>
+            </div>
+        </div>
+        <div id="pre-quiz-menu-screen" class="screen">
+             <h2>Tùy chọn làm bài</h2>
+             <div class="button-group">
+                <button id="menu-shuffle-btn" class="btn">Trộn câu hỏi và đáp án: Tắt</button>
+                <button id="menu-start-btn" class="btn btn-success">Bắt Đầu</button>
+                <button id="menu-back-btn" class="btn btn-secondary" onclick="showScreen('home-screen')">Quay Lại</button>
+            </div>
+        </div>
+
+        <div id="quiz-section" class="screen">
+            <div id="settings-icon-container" style="display: none;">
+                <div class="hamburger-line"></div>
+                <div class="hamburger-line"></div>
+                <div class="hamburger-line"></div>
+            </div>
+            <div id="settings-panel">
+                <div class="settings-row">
+                    <label>Âm thanh</label>
+                    <button id="master-volume-btn" class="icon-btn" title="Nhấn để Tắt/Bật, Nhấn giữ để xem chi tiết"></button>
+                </div>
+                <div id="detailed-audio-settings">
+                    <div class="settings-row">
+                        <label for="music-toggle">Nhạc nền</label>
+                        <label class="switch"><input type="checkbox" id="music-toggle"><span class="slider"></span></label>
+                    </div>
+                    <div class="settings-row">
+                        <label for="correct-sound-toggle">Khi trả lời đúng</label>
+                        <label class="switch"><input type="checkbox" id="correct-sound-toggle"><span class="slider"></span></label>
+                    </div>
+                     <div class="settings-row">
+                        <label for="incorrect-sound-toggle">Khi trả lời sai</label>
+                        <label class="switch"><input type="checkbox" id="incorrect-sound-toggle"><span class="slider"></span></label>
+                    </div>
+                </div>
+                <hr style="margin: 15px 0;">
+                <div class="settings-row">
+                    <label for="auto-advance-toggle">Tự động chuyển câu</label>
+                    <label class="switch">
+                        <input type="checkbox" id="auto-advance-toggle" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+            
+            <h2 id="quiz-title">Nội dung bài thi</h2>
+            <div id="quiz-live-container"></div>
+            <div id="results-container" style="display:none;">
+                <h2>Kết Quả</h2>
+                <p id="final-score" class="text-2xl font-bold"></p>
+            </div>
+            <div class="button-group">
+                <button id="retry-btn" class="btn btn-success" style="display:none;" onclick="startQuizFromMenu()">Làm Lại</button>
+                <button id="submit-early-btn" class="btn btn-warning" style="display:none;">Nộp Bài Sớm</button>
+                <button id="exit-btn" class="btn btn-danger" onclick="showScreen('home-screen')">Thoát</button>
+            </div>
+        </div>
+    </div>
+    <script>
+        const QUIZ_DATA_SETS = {
+  "Bài thi mới - 29/10/2025": [
+    {
+      "cau_hoi": "Câu 1. Đặc điểm kinh tế của nhóm nước phát triển",
+      "lua_chon": [
+        "A. Tốc độ tăng GDP rất cao.",
+        "B. Thường có qui mô GDP nhỏ.",
+        "*C. Tiến hành công nghiệp hóa từ sớm.",
+        "D. Nông nghiệp có tỉ trọng cao trong cơ cấu GDP."
+      ],
+      "dap_an_dung": [
+        "*C. Tiến hành công nghiệp hóa từ sớm."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 2. Nhóm nước phát triển có",
+      "lua_chon": [
+        "*A. GNI bình quân đầu người cao.",
+        "B. tỉ trọng của địch vụ trong GDP thấp.",
+        "C. chỉ số phát triển con người còn thấp.",
+        "D. tỉ trọng của nông nghiệp còn rất lớn."
+      ],
+      "dap_an_dung": [
+        "*A. GNI bình quân đầu người cao."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 3: Nhóm nước đang phát triển có.",
+      "lua_chon": [
+        "A. thu nhập bình quân đầu người rất cao.",
+        "B. tỉ trọng của dịch vụ trong GDP rất cao.",
+        "*C. chỉ số phát triển con người không quá cao.",
+        "D. tỉ trọng của nông nghiệp còn rất nhỏ bé."
+      ],
+      "dap_an_dung": [
+        "*C. chỉ số phát triển con người không quá cao."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 4. Các nước đang phát triển có đặc điểm nào sau đây?",
+      "lua_chon": [
+        "A. Thu nhập bình quân theo đầu người cao.",
+        "B. Chỉ số phát triển con người ở mức cao.",
+        "*C. Tuổi thọ trung bình của dân cư còn thấp.",
+        "D. Tỉ trọng ngành dịch vụ rất cao trong cơ cấu GDP."
+      ],
+      "dap_an_dung": [
+        "*C. Tuổi thọ trung bình của dân cư còn thấp."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 5. Đa số các nước đang phát triển có đặc điểm nào sau đây?",
+      "lua_chon": [
+        "A. GNI/người cao, chỉ số HDI ở mức thấp, tỉ lệ dân đô thị rất cao.",
+        "*B. GNI/người chưa thật cao, chỉ số HDI chưa cao, cơ cấu dân số trẻ.",
+        "C. GNI/người rất cao, chỉ số HDI rất thấp, tỉ lệ gia tăng dân số cao.",
+        "D. GNI/người chưa cao, chỉ số HDI ở mức cao, tỉ lệ dân đô thị thấp."
+      ],
+      "dap_an_dung": [
+        "*B. GNI/người chưa thật cao, chỉ số HDI chưa cao, cơ cấu dân số trẻ."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 6. Biểu hiện của toàn cầu hóa kinh tế là.",
+      "lua_chon": [
+        "*A. tăng nhanh các giao dịch thương mại quốc tế.",
+        "B. tăng cường sự hợp tác quân sự.",
+        "C. hạn chế sự phụ thuộc lẫn nhau giữa các nước.",
+        "D. gia tăng các liên minh chính trị."
+      ],
+      "dap_an_dung": [
+        "*A. tăng nhanh các giao dịch thương mại quốc tế."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 7. Sự ra đời của tổ chức nào sau đây là biểu hiện của khu vực hóa kinh tế?",
+      "lua_chon": [
+        "A. Ngân hàng thế giới (WBG).",
+        "B. Tổ chức Thương mại thế giới (WTO).",
+        "*C. Hiệp hội các quốc gia Đông Nam Á (ASEAN).",
+        "D. Quỹ Tiền tệ Quốc tế (IMF)."
+      ],
+      "dap_an_dung": [
+        "*C. Hiệp hội các quốc gia Đông Nam Á (ASEAN)."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 8. Sự ra đời của tổ chức nào sau đây là biểu hiện của khu vực hóa kinh tế?",
+      "lua_chon": [
+        "A. Quỹ Tiền tệ Quốc tế (IMF).",
+        "B. Tổ chức Thương mại thế giới (WTO).",
+        "C. Ngân hàng thế giới (WBG).",
+        "*D. Thị trường chung Nam Mỹ (MERCOSUR)."
+      ],
+      "dap_an_dung": [
+        "*D. Thị trường chung Nam Mỹ (MERCOSUR)."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 9. Phát biểu nào sau đây thể hiện rõ nhất sự tăng nhanh của các giao dịch thương mại quốc tế?",
+      "lua_chon": [
+        "A. Gia tăng vị thế các tổ chức liên kết khu vực.",
+        "B. Tăng nhanh tỉ lệ thất nghiệp và thiếu việc làm.",
+        "*C. Xuất hiện, phát triển mạnh thương mại điện tử.",
+        "D. Hạn chế sự phụ thuộc lẫn nhau giữa các nước."
+      ],
+      "dap_an_dung": [
+        "*C. Xuất hiện, phát triển mạnh thương mại điện tử."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 10. Hệ quả của toàn cầu hóa kinh tế là.",
+      "lua_chon": [
+        "A. Nhiều tổ chức khu vực được hình thành.",
+        "B. Bổ sung các nguồn lực của mỗi quốc gia.",
+        "*C. Thúc đẩy chuyên môn hóa, hợp tác hóa.",
+        "D. Giảm sức ép từ các quốc gia ngoài khu vực."
+      ],
+      "dap_an_dung": [
+        "*C. Thúc đẩy chuyên môn hóa, hợp tác hóa."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 11. Thách thức to lớn của toàn cầu hóa đối với các nước đang phát triển là.",
+      "lua_chon": [
+        "A. tự do hóa thương mại được mở rộng.",
+        "B. gây áp lực với tự nhiên, môi trường.",
+        "*C. hàng hóa có cơ hội lưu thông rộng rãi.",
+        "D. các quốc gia đón đầu công nghệ mới."
+      ],
+      "dap_an_dung": [
+        "*C. hàng hóa có cơ hội lưu thông rộng rãi."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 12. Các tổ chức liên kết kinh tế đặc thù trên thế giới thường được thành lập bởi các quốc gia có.",
+      "lua_chon": [
+        "*A. nét tương đồng về địa lí, văn hóa, xã hội.",
+        "B. sự phát triển kinh tế - xã hội đồng đều.",
+        "C. tổng thu nhập quốc gia tương tự nhau.",
+        "D. lịch sử phát triển đất nước giống nhau."
+      ],
+      "dap_an_dung": [
+        "*A. nét tương đồng về địa lí, văn hóa, xã hội."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 13. Biểu hiện của thương mại thế giới phát triển mạnh là.",
+      "lua_chon": [
+        "A. mạng lưới liên kết tài chính toàn cầu mở rộng toàn thế giới.",
+        "B. đầu tư nước ngoài tăng rất nhanh, nhất là lĩnh vực dịch vụ.",
+        "*C. thương mại điện tử có những bước phát triển mạnh mẽ.",
+        "D. các công ti xuyên quốc gia hoạt động với phạm vi rất rộng."
+      ],
+      "dap_an_dung": [
+        "*C. thương mại điện tử có những bước phát triển mạnh mẽ."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 14. Biểu hiện của việc tăng cường áp dụng các tiêu chuẩn toàn cầu là.",
+      "lua_chon": [
+        "A. mạng lưới liên kết tài chính toàn cầu được mở rộng.",
+        "*B. các tiêu chuẩn thống nhất áp dụng trên nhiều lĩnh vực.",
+        "C. vai trò của Tổ chức Thương mại thế giới ngày càng lớn.",
+        "D. các công ti xuyên quốc gia hoạt động với phạm vi rộng."
+      ],
+      "dap_an_dung": [
+        "*B. các tiêu chuẩn thống nhất áp dụng trên nhiều lĩnh vực."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 15.  Biểu hiện của khu vực hoá kinh tế là.",
+      "lua_chon": [
+        "A. phát triển nhanh mạng lưới tài chính toàn cầu.",
+        "B. ra đời và phát triển các tổ chức kinh tế toàn cầu.",
+        "C. sự ra đời và phát triển của các công ty đa quốc gia.",
+        "*D. hình thành và phát triển các tổ chức khu vực."
+      ],
+      "dap_an_dung": [
+        "*D. hình thành và phát triển các tổ chức khu vực."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 16. Hệ quả quan trọng nhất của toàn cầu hóa kinh tế là",
+      "lua_chon": [
+        "A. đẩy nhanh đầu tư.",
+        "B. xóa đói giảm nghèo.",
+        "C. giao lưu, học tập.",
+        "*D. thúc đẩy sản xuất."
+      ],
+      "dap_an_dung": [
+        "*D. thúc đẩy sản xuất."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 17. Hệ quả tiêu cực của toàn cầu hóa kinh tế là.",
+      "lua_chon": [
+        "A. tăng cường sự hợp tác quốc tế nhiều mặt.",
+        "B. đẩy nhanh đầu tư, làm sản xuất phát triển.",
+        "*C. gia tăng nhanh khoảng cách giàu nghèo.",
+        "D. thúc đẩy sự tăng trưởng kinh tế toàn cầu."
+      ],
+      "dap_an_dung": [
+        "*C. gia tăng nhanh khoảng cách giàu nghèo."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 18. Tác động tích cực của của toàn cầu hóa không phải là.",
+      "lua_chon": [
+        "A. tăng cường sự hợp tác về kinh tế và văn hóa giữa các nước.",
+        "B. đẩy nhanh đầu tư và khai thác triệt để khoa học, công nghệ.",
+        "C. thúc đẩy sản xuất phát triển và tăng trưởng kinh tế toàn cầu.",
+        "*D. thúc đẩy quá trình đô thị hóa tự phát ở nước đang phát triển."
+      ],
+      "dap_an_dung": [
+        "*D. thúc đẩy quá trình đô thị hóa tự phát ở nước đang phát triển."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 19. Tính đến năm 2020, Liên hợp quốc có bao nhiêu nước thành viên?",
+      "lua_chon": [
+        "A. 163.",
+        "B. 173.",
+        "C. 183.",
+        "*D. 193."
+      ],
+      "dap_an_dung": [
+        "*D. 193."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 20. Tổ chức thương mại thế giới WTO được thành lập năm nào sau đây?",
+      "lua_chon": [
+        "A. 1944.",
+        "B. 1945.",
+        "C. 1989.",
+        "*D. 1995."
+      ],
+      "dap_an_dung": [
+        "*D. 1995."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 21. Diễn đàn hợp tác kinh tế châu Á - Thái Bình Dương được thành lập năm nào sau đây?",
+      "lua_chon": [
+        "A. 1944.",
+        "B. 1945.",
+        "*C. 1989.",
+        "D. 1995."
+      ],
+      "dap_an_dung": [
+        "*C. 1989."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 22. Việt Nam là thành viên của Diễn đàn hợp tác kinh tế châu Á - Thái Bình Dương vào năm nào sau đây?",
+      "lua_chon": [
+        "A. 1977.",
+        "B. 1976.",
+        "C. 2007.",
+        "*D. 1998."
+      ],
+      "dap_an_dung": [
+        "*D. 1998."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 23. Vấn đề nào dưới đây là vấn đề an ninh truyền thống?",
+      "lua_chon": [
+        "A. An ninh năng lượng.",
+        "*B. An ninh quân sự.",
+        "C. An ninh mạng.",
+        "D. An ninh nguồn nước."
+      ],
+      "dap_an_dung": [
+        "*B. An ninh quân sự."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 24. Vấn đề nào dưới đây là vấn đề an ninh phi truyền thống?",
+      "lua_chon": [
+        "A. An ninh chính trị.",
+        "B. An ninh quân sự.",
+        "C. Chiến tranh, xung đột vũ trang.",
+        "*D. An ninh lương thực."
+      ],
+      "dap_an_dung": [
+        "*D. An ninh lương thực."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 25. Duy trì hòa bình và trật tự thế giới là nhiệm vụ chủ yếu của.",
+      "lua_chon": [
+        "A. Tổ chức Thương mại Thế giới.",
+        "B. Quỹ Tiền tệ quốc tế (IMF).",
+        "C. Ngân hàng Thế giới (WB).",
+        "*D. Liên hợp quốc."
+      ],
+      "dap_an_dung": [
+        "*D. Liên hợp quốc."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 26. Đảm bảo sự ổn định tài chính toàn cầu là nhiệm vụ chủ yếu của.",
+      "lua_chon": [
+        "A. Tổ chức Thương mại Thế giới.",
+        "*B. Quỹ Tiền tệ quốc tế (IMF).",
+        "C. Ngân hàng Thế giới (WB).",
+        "D. Diễn đàn hợp tác kinh tế châu Á – TBD."
+      ],
+      "dap_an_dung": [
+        "*B. Quỹ Tiền tệ quốc tế (IMF)."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 27. Tổ chức nào sau đây có tiêu là giải quyết các bất đồng và tranh chấp thương mại giữa các nước thành viên?",
+      "lua_chon": [
+        "*A. Tổ chức Thương mại Thế giới.",
+        "B. Quỹ Tiền tệ quốc tế (IMF).",
+        "C. Liên hợp quốc.",
+        "D. Diễn đàn hợp tác kinh tế châu Á – TBD."
+      ],
+      "dap_an_dung": [
+        "*A. Tổ chức Thương mại Thế giới."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 28. Thiết lập và duy trì một nền thương mại toàn cầu tự do, thuận lợi và minh bạch là tôn chỉ của tổ chức nào sau đây?",
+      "lua_chon": [
+        "*A. Tổ chức Thương mại Thế giới.",
+        "B. Quỹ Tiền tệ quốc tế (IMF).",
+        "C. Ngân hàng Thế giới (WB).",
+        "D. Diễn đàn hợp tác kinh tế châu Á – TBD."
+      ],
+      "dap_an_dung": [
+        "*A. Tổ chức Thương mại Thế giới."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 29. Giải pháp mang tính cấp bách khi giải quyết vấn đề khủng hoảng an ninh ương thực là",
+      "lua_chon": [
+        "*A. cung cấp lương thực và cứu trợ nhân đạo.",
+        "B. tăng năng suất và phát triển bền vững.",
+        "C. phát huy vai trò của các tổ chức quốc tế.",
+        "D. bình ổn giá, ưu tiên hàng lương thực."
+      ],
+      "dap_an_dung": [
+        "*A. cung cấp lương thực và cứu trợ nhân đạo."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 30. Vấn đề nào sau đây được xếp vào vấn đề an ninh truyền thống?",
+      "lua_chon": [
+        "*A. Khủng bố.",
+        "B. An ninh tài chính.",
+        "C. An ninh năng lượng.",
+        "D. Biến đổi khí hậu."
+      ],
+      "dap_an_dung": [
+        "*A. Khủng bố."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 31. Vấn đề nào sau đây được xếp vào vấn đề an ninh truyền thống?",
+      "lua_chon": [
+        "A. An ninh mạng.",
+        "B. An ninh tài chính.",
+        "*C. Chiến tranh cục bộ.",
+        "D. Biến đổi khí hậu."
+      ],
+      "dap_an_dung": [
+        "*C. Chiến tranh cục bộ."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 32. Vấn đề nào sau đây được xếp vào vấn đề an ninh phi truyền thống?",
+      "lua_chon": [
+        "A. Khủng bố.",
+        "B. Chiến tranh.",
+        "*C. An ninh năng lượng.",
+        "D. Lật đổ chế độ."
+      ],
+      "dap_an_dung": [
+        "*C. An ninh năng lượng."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 33. Phía đông khu vực Mỹ La-tinh giáp với.",
+      "lua_chon": [
+        "A. Thái Bình Dương.",
+        "B. Ấn Độ Dương.",
+        "*C. Đại Tây Dương.",
+        "D. Nam Đại Dương."
+      ],
+      "dap_an_dung": [
+        "*C. Đại Tây Dương."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 34. Phía tây khu vực Mỹ La-tinh giáp với.",
+      "lua_chon": [
+        "*A. Thái Bình Dương.",
+        "B. Ấn Độ Dương.",
+        "C. Đại Tây Dương.",
+        "D. Nam Đại Dương."
+      ],
+      "dap_an_dung": [
+        "*A. Thái Bình Dương."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 35. Bộ phận nào sau đây không thuộc phạm vi lãnh thổ khu vực Mỹ La-tinh?",
+      "lua_chon": [
+        "*A. Bắc Mỹ.",
+        "B. Eo đất Trung Mỹ.",
+        "C. Quần đảo Ca-ri-bê.",
+        "D. Lục địa Nam Mỹ"
+      ],
+      "dap_an_dung": [
+        "*A. Bắc Mỹ."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 36. Mỹ La-tinh nằm giữa hai đại dương lớn là.",
+      "lua_chon": [
+        "A. Đại Tây Dương và Ấn Độ Dương.",
+        "B. Bắc Băng Dương và Ấn Độ Dương.",
+        "*C. Đại Tây Dương và Thái Bình Dương.",
+        "D. Thái Bình Dương và Bắc Băng Dương."
+      ],
+      "dap_an_dung": [
+        "*C. Đại Tây Dương và Thái Bình Dương."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 37. Khu vực Mỹ La-tinh gồm.",
+      "lua_chon": [
+        "A. Mê-hi-cô, Trung và Bắc Mỹ, các quần đảo trong biển Ca-ri-bê.",
+        "*B. Mê-hi-cô, Trung và Nam Mỹ, các quần đảo trong biển Ca-ri-bê.",
+        "C. Mê-hi-cô, Trung và Nam Mỹ, quần đảo Ăng-ti, kênh đào Xuy-ê.",
+        "D. Mê-hi-cô, Trung và Bắc Mỹ, kênh đào Xuy-ê và kênh Pa-na-ma."
+      ],
+      "dap_an_dung": [
+        "*B. Mê-hi-cô, Trung và Nam Mỹ, các quần đảo trong biển Ca-ri-bê."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 38. Đô thị nào có số dân lớn nhất trong các đô thị sau đây?",
+      "lua_chon": [
+        "A. La-ha-ba-na.",
+        "B. Xan-hô-xê.",
+        "*C. Xao Pao-lô.",
+        "D. Ca-ra-cát."
+      ],
+      "dap_an_dung": [
+        "*C. Xao Pao-lô."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 39. Khu vực Mỹ La-tinh có.",
+      "lua_chon": [
+        "A. dân số ít, cơ cấu dân số rất già.",
+        "B. gia tăng dân số rất cao, dân trẻ.",
+        "*C. dân số đông và cơ cấu già hóa.",
+        "D. gia tăng dân số rất nhỏ, dân già."
+      ],
+      "dap_an_dung": [
+        "*C. dân số đông và cơ cấu già hóa."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 40. Dân cư Mỹ La-tinh sống tập trung ở",
+      "lua_chon": [
+        "A. đồng bằng A-ma-dôn.",
+        "B. vùng núi An-đét.",
+        "C. hoang mạc A-ta-ca-ma.",
+        "*D. vùng ven biển."
+      ],
+      "dap_an_dung": [
+        "*D. vùng ven biển."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 41. Nước có quy mô GDP lớn nhất uhu vực Mỹ La-tinh năm 2020 là.",
+      "lua_chon": [
+        "A. Mê-hi-cô.",
+        "B. Pê-ru.",
+        "C. Ác-hen-ti-na.",
+        "*D. Bra-xin."
+      ],
+      "dap_an_dung": [
+        "*D. Bra-xin."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 42. Đồng bằng có diện tích lớn nhất khu vực Mỹ La-tinh là",
+      "lua_chon": [
+        "A. Pam-pa.",
+        "*B. La Pla-ta.",
+        "C. A-ma-dôn.",
+        "D. Ô-ri-nô-cô."
+      ],
+      "dap_an_dung": [
+        "*B. La Pla-ta."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 43. Ngành công nghiệp đóng vai trò quan trọng nhất đối với khu vực Mỹ La-tinh là.",
+      "lua_chon": [
+        "A. thực phẩm.",
+        "B. cơ khí.",
+        "C. điện tử - tin học.",
+        "*D. khai thác khoáng sản."
+      ],
+      "dap_an_dung": [
+        "*D. khai thác khoáng sản."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 44. Vấn đề dân cư - xã hội đáng quan tâm nhất ở Mỹ La-tinh là.",
+      "lua_chon": [
+        "A. có nhiều siêu đô thị dân đông.",
+        "B. tỉ lệ thất nghiệp ở thành thị cao.",
+        "C. dân nông thôn vào đô thị đông.",
+        "*D. chênh lệch giàu nghèo rất lớn."
+      ],
+      "dap_an_dung": [
+        "*D. chênh lệch giàu nghèo rất lớn."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 45. Lĩnh vực dịch vụ quan trọng nhất của Khu vực Mỹ La-tinh là",
+      "lua_chon": [
+        "*A. giao thông vận tải.",
+        "B. tài chính.",
+        "C. du lịch.",
+        "D. ngoại thương ."
+      ],
+      "dap_an_dung": [
+        "*A. giao thông vận tải."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 46. Các quần đảo trong biển Ca-ri-bê có thuận lợi chủ yếu cho phát triển ngành kinh tế nào sau đây?",
+      "lua_chon": [
+        "A. Khai khoáng.",
+        "B. Thủy điện.",
+        "*C. Du lịch.",
+        "D. Chăn nuôi."
+      ],
+      "dap_an_dung": [
+        "*C. Du lịch."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 47. Tiềm năng tự nhiên lớn nhất ở dãy An-đét cho phát triển kinh tế là.",
+      "lua_chon": [
+        "*A. khoáng sản, thủy điện.",
+        "B. thủy điện, đất trồng.",
+        "C. đất trồng, sinh vật.",
+        "D. sinh vật, khoáng sản."
+      ],
+      "dap_an_dung": [
+        "*A. khoáng sản, thủy điện."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 48. Cây lương thực chính của khu vực Mỹ La-tinh là.",
+      "lua_chon": [
+        "*A. lúa mì, ngô.",
+        "B. lúa gạo, ngô.",
+        "C. cà phê, lúa mì.",
+        "D. cao su, cà phê ."
+      ],
+      "dap_an_dung": [
+        "*A. lúa mì, ngô."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 49. Các ngành kinh tế chủ đạo ở Mỹ La-tinh là.",
+      "lua_chon": [
+        "A. khai khoáng, chế tạo máy và du lịch.",
+        "B. trồng trọt, chăn nuôi và khai khoáng.",
+        "C. đánh cá, du lịch, nuôi trồng thủy sản.",
+        "*D. khai khoáng, nông nghiệp và dịch vụ."
+      ],
+      "dap_an_dung": [
+        "*D. khai khoáng, nông nghiệp và dịch vụ."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 50. Vấn đề kinh tế - xã hội còn tồn tại lớn nhất ở các nước Mĩ La tinh hiện nay là.",
+      "lua_chon": [
+        "*A. tình trang đô thị hóa tự phát.",
+        "B. xung đột về sắc tôc, tôn giáo.",
+        "C. sự phân hóa giàu nghèo rất sâu sắc.",
+        "D. sự suy giảm nguồn tài nguyên thiên nhiên."
+      ],
+      "dap_an_dung": [
+        "*A. tình trang đô thị hóa tự phát."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 51. Tình hình phát triển kinh tế chung của khu vực Mỹ La-tinh có đặc điểm nào sau đây?",
+      "lua_chon": [
+        "A. Qui mô GDP lớn, chiếm khoảng 20% của thế giới.",
+        "B. Qui mô GDP của các nước trong khu vực ít chênh lệch.",
+        "*C. Tốc độ tăng GDP nhìn chung còn chậm và không ổn định.",
+        "D. Cơ cấu kinh tế chuyển dịch theo hướng tăng tỉ trọng nông nghiệp."
+      ],
+      "dap_an_dung": [
+        "*C. Tốc độ tăng GDP nhìn chung còn chậm và không ổn định."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 52. Mỹ La-tinh là khu vực có tỉ lệ dân thành thị.",
+      "lua_chon": [
+        "*A. cao và tăng nhanh.",
+        "B. rất cao và tăng chậm.",
+        "C. cao và tăng chậm.",
+        "D. thấp nhưng tăng nhanh."
+      ],
+      "dap_an_dung": [
+        "*A. cao và tăng nhanh."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 1. Cho bảng số liệu:\n\nGDP VÀ TỐC ĐỘ TĂNG TRƯỞNG GDP CỦA MỘT SỐ NƯỚC NĂM 2021\n\n. #{res/image_0.png}#",
+      "lua_chon": [
+        "a) Hoa Kỳ có qui mô GDP lớn nhất, tăng trưởng GDP cao nhất.",
+        "b) Việt Nam có qui mô GDP thấp nhất, tăng trưởng GDP thấp nhất.",
+        "*c) Qui mô GDP của Hoa Kỳ gấp Đức 6 lần, gấp Việt Nam 70 lần.",
+        "d) Biểu đồ cột là biểu đồ thích hợp nhất thể hiện qui mô GDP và tốc độ tăng trưởng GDP của một số nước năm 2021."
+      ],
+      "dap_an_dung": [
+        "*c) Qui mô GDP của Hoa Kỳ gấp Đức 6 lần, gấp Việt Nam 70 lần."
+      ],
+      "type": "true_false"
+    },
+    {
+      "cau_hoi": "Câu 2. Cho thông tin sau:\n\n     Hoà bình là khát vọng của toàn nhân loại. Tuy nhiên, hiện nay ở một số khu vực trên thế giới, hoà bình và an ninh quốc tế đang đối mặt với nhiều vấn đề như: đói nghèo, phân biệt chủng tộc, sắc tộc, tôn giáo, xung đột vũ trang, biến đổi khí hậu, tranh chấp biên giới, lãnh thổ,... diễn ra với nhiều mức độ khác nhau. Sự phân hoá giàu nghèo ngày càng sâu sắc, một số quốc gia có sự cạnh tranh gay gắt với nhau về kinh tế.",
+      "lua_chon": [
+        "*a) Một số khu vực trên thế giới hiện nay vẫn phải đối mặt với vấn đề an ninh chưa được đảm bảo.",
+        "*b) Tình trạnh phân hoá giàu nghèo trên thế giới ngày càng gia tăng.",
+        "*c) Vấn đề đói nghèo, biến đối khí hậu… thuộc an ninh phi truyền thống.",
+        "d) Xung đột sắc tộc, vũ trang xảy ra khắp nơi đe doạ nghiêm trọng đến hoà bình thế giới."
+      ],
+      "dap_an_dung": [
+        "*a) Một số khu vực trên thế giới hiện nay vẫn phải đối mặt với vấn đề an ninh chưa được đảm bảo.",
+        "*b) Tình trạnh phân hoá giàu nghèo trên thế giới ngày càng gia tăng.",
+        "*c) Vấn đề đói nghèo, biến đối khí hậu… thuộc an ninh phi truyền thống."
+      ],
+      "type": "true_false"
+    },
+    {
+      "cau_hoi": "Câu 3. Cho thông tin sau: \n\nLãnh thổ Mỹ La-tinh rộng lớn và trải dài trên nhiều vĩ độ nên khu vực này có nhiều đới và kiểu khí hậu khác nhau. Đới khí hậu xích đạo và cận xích đạo nằm ở quần đảo Ăng-ti, sơn nguyên Guy-a-na, đồng bằng La-nôt và đồng bằng A-ma-dôn với nhiệt độ nóng quanh năm có lượng mưa lớn. Đới khí hậu nhiệt đới nằm ở eo đất Trung Mỹ và phía nam đồng A-ma-dôn có nhiệt độ nóng quanh năm và lượng mưa tăng dần từ Tây sang Đông. Phía Nam lãnh thổ có khí hậu cận nhiệt (mùa hạ nóng, mùa đông ấm) và ôn đới hải dương (mùa hạ mát mùa đông không quá lạnh).",
+      "lua_chon": [
+        "*a) Đặc điểm về lãnh thổ tạo nên sự đa dạng về khí hậu của Mỹ La-tinh.",
+        "b) Phần lớn lãnh thổ Mỹ La-tinh có khí hậu ôn hoà, ẩm ướt.",
+        "*c) Khí hậu Mỹ La-tinh thuận lợi để phát triển nền nông nghiệp nhiệt đới.",
+        "*d) Phía Nam Mỹ La-tinh thuận lợi để trồng các cây công nghiệp cận nhiệt đới."
+      ],
+      "dap_an_dung": [
+        "*a) Đặc điểm về lãnh thổ tạo nên sự đa dạng về khí hậu của Mỹ La-tinh.",
+        "*c) Khí hậu Mỹ La-tinh thuận lợi để phát triển nền nông nghiệp nhiệt đới.",
+        "*d) Phía Nam Mỹ La-tinh thuận lợi để trồng các cây công nghiệp cận nhiệt đới."
+      ],
+      "type": "true_false"
+    },
+    {
+      "cau_hoi": "Câu 1: Cho bảng số liệu:\n\nTRỊ GIÁ XUẤT KHẨU HÀNG HÓA VÀ DỊCH VỤ TOÀN THẾ GIỚI GIAI ĐOẠN 2000 – 2020\n\n\n\n   Căn cứ vào bảng số liệu tính tốc độ tăng trưởng trị giá xuất khẩu hàng hóa và dịch vụ của thế giới năm 2020 so với năm 2000.  (làm tròn kết quả đến hàng đơn vị của %)\n\n→ #{res/image_1.png}#",
+      "lua_chon": [],
+      "dap_an_dung": [
+        "284"
+      ],
+      "type": "short_answer"
+    },
+    {
+      "cau_hoi": "Câu 2. Cho bảng số liệu:\n\nQUI MÔ GDP CỦA THẾ GIỚI GIAI ĐOẠN 2005 – 2022\n\n\n\nCăn cứ vào bảng số liệu trên, tính tốc độ tăng trưởng GDP của thế giới năm 2022 so với năm 2005. (làm tròn kết quả đến hàng đơn vị của %)\n\n→ #{res/image_2.png}#",
+      "lua_chon": [],
+      "dap_an_dung": [
+        "211"
+      ],
+      "type": "short_answer"
+    },
+    {
+      "cau_hoi": "Câu 3: Năm 2020 dân số thế giới là 7773 triệu người, tỉ số giới tính là 105/100. Tính dân số nam của thế giới năm 2020 (làm tròn kết quả đến hàng đơn vị của triệu người)  \n\n→",
+      "lua_chon": [],
+      "dap_an_dung": [
+        "3981"
+      ],
+      "type": "short_answer"
+    },
+    {
+      "cau_hoi": "Câu 4. Năm 2020, trị giá xuất nhập khẩu hàng hóa và dịch vụ toàn thế giới là 44 300,2 tỉ USD, trị giá nhập khẩu hàng hóa và dịch vụ là 21 949,6 tỉ USD. Tính tỉ lệ xuất siêu hàng hóa và dịch vụ của thế giới năm 2020. (làm tròn kết quả đến số phập phân thứ nhất của %)\n\n→",
+      "lua_chon": [],
+      "dap_an_dung": [
+        "1,8"
+      ],
+      "type": "short_answer"
+    },
+    {
+      "cau_hoi": "Câu 5. Biết tổng trị giá xuất nhập khẩu thế giới năm 2020 là 44 300,2 tỉ USD, trong đó trị giá xuất khẩu so với trị giá nhập khẩu là 104%. Tính trị giá xuất khẩu của thế giới năm 2020. (làm tròn kết quả đến hàng đơn vị của nghìn tỉ USD)\n\n→",
+      "lua_chon": [],
+      "dap_an_dung": [
+        "23"
+      ],
+      "type": "short_answer"
+    },
+    {
+      "cau_hoi": "Câu 6. Biết diện tích của Mĩ La tinh là 20111,5 nghìn km2, dân số là 659300 nghìn người (năm 2022). Hãy cho biết mật độ dân số của Mĩ La tinh năm 2022 là bao nhiêu người/ km2.(lấy kết quả đến chữ số thập phân thứ nhất của người/ km2). \n\n→",
+      "lua_chon": [],
+      "dap_an_dung": [
+        "32,8"
+      ],
+      "type": "short_answer"
+    },
+    {
+      "cau_hoi": "Câu 7: Biết tổng GDP của Bra-xin năm 2021 là 1609 tỉ USD, tỉ trọng khu vực Công nghiệp, xây dựng trong cơ cấu GDP của Bra-xin chiếm 18,9%. Hãy cho biết giá trị khu vực Công nghiệp, xây dựng của Bra-xin năm 2021 là bao nhiêu tỉ USD (làm tròn kết quả đến hàng đơn vị của tỉ USD)\n\n→",
+      "lua_chon": [],
+      "dap_an_dung": [
+        "304"
+      ],
+      "type": "short_answer"
+    },
+    {
+      "cau_hoi": "Câu 8.  Biết diện tích của khu vực Mĩ La tinh khoảng 20 triệu km2, diện tích rừng năm 2020 là 9,32 triệu km2. Hãy cho biết tỉ lệ che phủ rừng của khu vực Mi La tinh là bao nhiêu (%). (lấy kết quả đến chữ số thập phân thứ nhất của %). \n\n→",
+      "lua_chon": [],
+      "dap_an_dung": [
+        "46,6"
+      ],
+      "type": "short_answer"
+    },
+    {
+      "cau_hoi": "Câu 9.  Cho bảng số liệu:\n\nSỐ DÂN THEO NHÓM TUỔI CỦA ACHENTINA, NĂM 2020\n\n\n\nCăn cứ vào bảng số liệu, tính tỉ trọng nhóm tuổi từ 0 đến 14 tuổi trong tổng số dân Achentina. (lấy kết quả đến chữ số thập phân thứ nhất của %). \n\n→ #{res/image_3.png}#",
+      "lua_chon": [],
+      "dap_an_dung": [
+        "25,4"
+      ],
+      "type": "short_answer"
+    },
+    {
+      "cau_hoi": "Câu 10. Năm 2019, Mỹ la tinh đón 202 triệu khách du lịch quốc tế và doanh thu từ khách quốc tế đạt 75.600 triệu USD. Hãy tính chi tiêu bình quân của mỗi lượt khách quốc tế.(làm tròn kết quả đến hàng đơn vị của USD/  NGƯỜI). \n\n→",
+      "lua_chon": [],
+      "dap_an_dung": [
+        "374"
+      ],
+      "type": "short_answer"
+    },
+    {
+      "cau_hoi": "Câu 11. Năm 2020, dân số của Bra- xin là 213,2 triệu người, số dân thành thị là 185,7 triệu người. Hãy cho biết tỉ lệ dân nông thôn của Bra- xin. (làm tròn kết quả đến hàng đơn vị    của %). \n\n→",
+      "lua_chon": [],
+      "dap_an_dung": [
+        "13"
+      ],
+      "type": "short_answer"
+    },
+    {
+      "cau_hoi": "Câu 12. Cho bảng số liệu\n\nQUY MÔ GDP THEO GIÁ HIỆN HÀNH CỦA BRA -XIN, GIAI ĐOẠN 2000 - 2020\n\n\n\n     Căn cứ vào bảng số liệu trên, tính tốc độ tăng trưởng GDP của Bra-xin năm 2015. Lấy năm 2000 là \n\nnăm gốc. (Làm tròn đến kết quả hàng đơn vị của %) \n\n→ #{res/image_4.png}#",
+      "lua_chon": [],
+      "dap_an_dung": [
+        "275"
+      ],
+      "type": "short_answer"
+    },
+    {
+      "cau_hoi": "Câu 13. Năm 2020, dân số của Mĩ La-tinh là 652,3 triệu người, trong đó dân số trong độ tuổi lao động là 438,3 triệu người. Tính tỉ lệ dân số trong độ tuổi lao động của Mĩ La-tinh năm 2020 (làm tròn đến hàng đơn vị của %). \n\n →",
+      "lua_chon": [],
+      "dap_an_dung": [
+        "67"
+      ],
+      "type": "short_answer"
+    },
+    {
+      "cau_hoi": "Câu 14. Năm 2020, GDP của Mĩ La-tinh đạt 4743,2 tỉ USD, dân số của Mĩ La-tinh là 652,3 triệu người. Tính bình quân GDP trên đầu người của Mĩ La-tinh năm 2020. (làm tròn đến hàng đơn vị của USD). \n\n→",
+      "lua_chon": [],
+      "dap_an_dung": [
+        "727"
+      ],
+      "type": "short_answer"
+    }
+  ]
+};
+        
+                const backgroundMusic = new Audio('./sounds/background.mp3');
+                const correctAnswerSound = new Audio('./sounds/correct.mp3');
+                const incorrectAnswerSound = new Audio('./sounds/incorrect.mp3');
+            
+
+        const ICONS = {
+            volumeOn: '<svg viewBox="0 0 24 24"><path d="M14,3.23V5.29C16.89,6.15 19,8.83 19,12C19,15.17 16.89,17.84 14,18.7V20.77C18,19.86 21,16.28 21,12C21,7.72 18,4.14 14,3.23M16.5,12C16.5,10.23 15.5,8.71 14,7.97V16C15.5,15.29 16.5,13.76 16.5,12M3,9V15H7L12,20V4L7,9H3Z"></path></svg>',
+            volumeOff: '<svg viewBox="0 0 24 24"><path d="M12,4L7,9H3V15H7L12,20V4M14,3.23V5.29C16.89,6.15 19,8.83 19,12C19,13.91 18.1,15.61 16.8,16.8L14,14V7.97C15.5,8.71 16.5,10.23 16.5,12C16.5,12.33 16.44,12.65 16.34,12.94L14.38,10.98L14,10.61V3.23Z M21.46,23.96L19.7,22.2C18.3,23.32 16.55,24 14.75,24C10.75,24 7.15,21.81 4.55,19.21L2.48,17.14L3.9,15.73L21.46,23.96Z"></path></svg>'
+        };
+
+        let appState = { 
+            currentUser: '', playerID: '', currentQuiz: [], quizTopic: '', originalQuizOrder: [], 
+            currentQuestionIndex: 0, score: 0, isShuffled: false, userAnswers: [], trueFalseAnswers: {}, isQuizStarted: false, 
+            quizStartTime: null, currentScreen: null, shuffledQuizMap: [], shuffledOptionsMap: [], 
+            feedbackTimeoutId: null,
+            isMasterMuted: false, isMusicMuted: false, isCorrectSoundMuted: false, isIncorrectSoundMuted: false,
+            isAutoAdvanceEnabled: true
+        };
+        
+        document.addEventListener('DOMContentLoaded', () => { initEventListeners(); checkLogin(); });
+        
+        function checkLogin() { 
+            const savedUser = localStorage.getItem('quizAppUser'); 
+            if (savedUser) { 
+                appState.currentUser = savedUser; 
+                document.getElementById('user-greeting').textContent = `Xin chào, ${appState.currentUser}!`; 
+                showScreen('home-screen'); 
+            } else { 
+                showScreen('login-screen'); 
+            } 
+        }
+        
+        function initEventListeners() {
+            document.getElementById('login-btn').addEventListener('click', () => { 
+                const username = document.getElementById('username-input').value.trim(); 
+                if (username) { 
+                    appState.currentUser = username; 
+                    localStorage.setItem('quizAppUser', username); 
+                    document.getElementById('user-greeting').textContent = `Xin chào, ${appState.currentUser}!`; 
+                    showScreen('home-screen'); 
+                } else { 
+                    alert('Vui lòng nhập tên của bạn.'); 
+                } 
+            });
+            document.getElementById('submit-early-btn').addEventListener('click', submitEarly);
+            document.getElementById('menu-shuffle-btn').addEventListener('click', toggleShuffle);
+            document.getElementById('menu-start-btn').addEventListener('click', startQuizFromMenu);
+
+            const settingsIcon = document.getElementById('settings-icon-container');
+            const settingsPanel = document.getElementById('settings-panel');
+            const masterVolumeBtn = document.getElementById('master-volume-btn');
+            const detailedAudioSettings = document.getElementById('detailed-audio-settings');
+            let pressTimer = null;
+            let isLongPress = false;
+
+            settingsIcon.addEventListener('click', () => {
+                settingsPanel.style.display = settingsPanel.style.display === 'block' ? 'none' : 'block';
+            });
+
+            const handleMasterVolumeClick = () => {
+                appState.isMasterMuted = !appState.isMasterMuted;
+                appState.isMusicMuted = appState.isMasterMuted;
+                appState.isCorrectSoundMuted = appState.isMasterMuted;
+                appState.isIncorrectSoundMuted = appState.isMasterMuted;
+                syncSettingsUI();
+                controlBackgroundMusic();
+            };
+
+            masterVolumeBtn.addEventListener('mousedown', () => {
+                isLongPress = false;
+                pressTimer = setTimeout(() => {
+                    isLongPress = true;
+                    detailedAudioSettings.style.display = detailedAudioSettings.style.display === 'block' ? 'none' : 'block';
+                }, 500);
+            });
+
+            masterVolumeBtn.addEventListener('mouseup', () => {
+                clearTimeout(pressTimer);
+                if (!isLongPress) {
+                    handleMasterVolumeClick();
+                }
+            });
+            
+            masterVolumeBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault(); isLongPress = false;
+                pressTimer = setTimeout(() => { isLongPress = true; detailedAudioSettings.style.display = detailedAudioSettings.style.display === 'block' ? 'none' : 'block'; }, 500);
+            }, { passive: false });
+
+            masterVolumeBtn.addEventListener('touchend', (e) => {
+                e.preventDefault(); clearTimeout(pressTimer);
+                if (!isLongPress) { handleMasterVolumeClick(); }
+            });
+
+            document.getElementById('music-toggle').addEventListener('change', (e) => {
+                appState.isMusicMuted = !e.target.checked; controlBackgroundMusic(); syncSettingsUI();
+            });
+            document.getElementById('correct-sound-toggle').addEventListener('change', (e) => {
+                appState.isCorrectSoundMuted = !e.target.checked; syncSettingsUI();
+            });
+            document.getElementById('incorrect-sound-toggle').addEventListener('change', (e) => {
+                appState.isIncorrectSoundMuted = !e.target.checked; syncSettingsUI();
+            });
+            document.getElementById('auto-advance-toggle').addEventListener('change', (e) => {
+                appState.isAutoAdvanceEnabled = e.target.checked;
+            });
+        }
+
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+            appState.currentScreen = screenId;
+            const settingsIcon = document.getElementById('settings-icon-container');
+            if (screenId === 'quiz-section') {
+                settingsIcon.style.display = 'block';
+            } else {
+                settingsIcon.style.display = 'none';
+                document.getElementById('settings-panel').style.display = 'none';
+            }
+        }
+
+        function startQuizFromMenu() { 
+            if (typeof QUIZ_DATA_SETS === 'undefined' || Object.keys(QUIZ_DATA_SETS).length === 0) { 
+                alert("Lỗi: Dữ liệu bài thi chưa được chèn vào file."); return; 
+            } 
+            const firstQuizKey = Object.keys(QUIZ_DATA_SETS)[0]; 
+            const quizData = QUIZ_DATA_SETS[firstQuizKey]; 
+            if (!quizData || quizData.length === 0) { 
+                alert("Bài thi này không có câu hỏi nào."); return; 
+            } 
+            appState.quizTopic = firstQuizKey; 
+            appState.originalQuizOrder = JSON.parse(JSON.stringify(quizData)); 
+            showScreen('quiz-section'); 
+            document.getElementById('quiz-title').textContent = appState.quizTopic; 
+            startQuiz(); 
+        }
+        
+        function startQuiz() {
+            appState.score = 0; appState.currentQuestionIndex = 0; appState.userAnswers = []; appState.trueFalseAnswers = {}; appState.isQuizStarted = true; appState.quizStartTime = Date.now(); appState.shuffledQuizMap = []; appState.shuffledOptionsMap = [];
+            
+            const quizData = appState.originalQuizOrder;
+            if (appState.isShuffled) {
+                const shuffleableIndices = quizData
+                    .map((q, i) => (q.groupId ? null : i))
+                    .filter((i) => i !== null);
+    
+                for (let i = shuffleableIndices.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [shuffleableIndices[i], shuffleableIndices[j]] = [shuffleableIndices[j], shuffleableIndices[i]];
+                }
+    
+                const newTempQuiz = [];
+                const newTempQuizMap = [];
+                let shuffleableIndexPointer = 0;
+    
+                for (let i = 0; i < quizData.length; i++) {
+                    if (quizData[i].groupId) {
+                        newTempQuiz[i] = quizData[i];
+                        newTempQuizMap[i] = i;
+                    } else {
+                        const originalIndex = shuffleableIndices[shuffleableIndexPointer];
+                        newTempQuiz[i] = quizData[originalIndex];
+                        newTempQuizMap[i] = originalIndex;
+                        shuffleableIndexPointer++;
+                    }
+                }
+                appState.currentQuiz = newTempQuiz.map(q => ({...q}));
+                appState.shuffledQuizMap = newTempQuizMap;
+            } else {
+                appState.currentQuiz = [...quizData];
+                appState.shuffledQuizMap = quizData.map((_, i) => i);
+            }
+
+            document.getElementById('results-container').style.display = 'none';
+            document.getElementById('retry-btn').style.display = 'none';
+            document.getElementById('submit-early-btn').style.display = 'inline-block';
+            document.getElementById('exit-btn').style.display = 'inline-block';
+            syncSettingsUI(); 
+            controlBackgroundMusic();
+            displayQuestion();
+        }
+
+        function syncSettingsUI() {
+            document.getElementById('master-volume-btn').innerHTML = appState.isMasterMuted ? ICONS.volumeOff : ICONS.volumeOn;
+            document.getElementById('music-toggle').checked = !appState.isMusicMuted;
+            document.getElementById('correct-sound-toggle').checked = !appState.isCorrectSoundMuted;
+            document.getElementById('incorrect-sound-toggle').checked = !appState.isIncorrectSoundMuted;
+            document.getElementById('auto-advance-toggle').checked = appState.isAutoAdvanceEnabled;
+            if(appState.isMasterMuted) {
+                 document.getElementById('music-toggle').checked = false;
+                 document.getElementById('correct-sound-toggle').checked = false;
+                 document.getElementById('incorrect-sound-toggle').checked = false;
+            }
+        }
+
+        function controlBackgroundMusic() {
+            if (!backgroundMusic) return;
+            if (appState.isQuizStarted && !appState.isMasterMuted && !appState.isMusicMuted) {
+                backgroundMusic.loop = true;
+                backgroundMusic.play().catch(e => console.log("Lỗi phát nhạc nền:", e));
+            } else {
+                backgroundMusic.pause();
+                backgroundMusic.currentTime = 0;
+            }
+        }
+        
+        function displayQuestion() {
+            const container = document.getElementById('quiz-live-container');
+            if (appState.currentQuestionIndex >= appState.currentQuiz.length) { showResults(); return; }
+            const q = appState.currentQuiz[appState.currentQuestionIndex];
+            
+            let passageHTML = '';
+            if (q.passage) {
+                let passageText = q.passage;
+                // Attempt to remove a duplicate title from the start of the passage
+                const qNumMatch = q.cau_hoi.match(/^Câu\s*(\d+)/);
+                if (qNumMatch) {
+                    const qNum = qNumMatch[1];
+                    const titleRegex = new RegExp(`^Câu\\s*${qNum}\\s*[:.]*\\s*`, 'i');
+                    passageText = passageText.replace(titleRegex, '');
+                }
+
+                const passageContentHTML = parseContentWithMedia(passageText);
+                passageHTML = `<div style="padding: 12px; margin-bottom: 16px; border: 1px solid #ddd; border-radius: 8px; background-color: #f9f9f9; max-height: 200px; overflow-y: auto;">${passageContentHTML}</div>`;
+            }
+
+            let questionHTML = `<div class="question-container" id="q-${appState.currentQuestionIndex}">${passageHTML}<p class="question-text">${parseContentWithMedia(q.cau_hoi)}</p><div class="options-container">`;
+            let optionsToDisplay = [...q.lua_chon];
+            const optionPrefixRegex = /^\s*\*?\s*[A-Za-z]{1,2}[.)]/;
+            if (appState.isShuffled && ['multiple_choice', 'multiple_answer', 'true_false'].includes(q.type)) {
+                let optionIndices = Array.from({length: optionsToDisplay.length}, (_, i) => i);
+                for (let i = optionIndices.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [optionIndices[i], optionIndices[j]] = [optionIndices[j], optionIndices[i]];
+                }
+                appState.shuffledOptionsMap[appState.currentQuestionIndex] = optionIndices;
+                optionsToDisplay = optionIndices.map(i => q.lua_chon[i]);
+            }
+
+            if (q.type === 'short_answer') {
+                questionHTML += `<input type="text" id="short-answer-input-${appState.currentQuestionIndex}" class="short-answer-input" placeholder="Nhập đáp án của bạn...">`;
+            } else if (q.type === 'true_false') {
+                optionsToDisplay.forEach((option, index) => {
+                    const originalIndex = appState.isShuffled ? appState.shuffledOptionsMap[appState.currentQuestionIndex][index] : index;
+                    questionHTML += `
+                        <div class="tf-option">
+                            <div class="tf-statement">${parseContentWithMedia(option.replace(optionPrefixRegex, '').trim())}</div>
+                            <div class="tf-buttons">
+                                <button class="tf-btn" onclick="toggleTrueFalse(this, '${appState.currentQuestionIndex}', '${originalIndex}')">Chọn</button>
+                            </div>
+                        </div>`;
+                });
+            } else {
+                const inputType = q.type === 'multiple_answer' ? 'checkbox' : 'radio';
+                optionsToDisplay.forEach(c => {
+                    questionHTML += `<label><input type="${inputType}" name="option-${appState.currentQuestionIndex}" value="${escapeHtml(c)}" class="mr-2"> ${parseContentWithMedia(c.replace(optionPrefixRegex, '').trim())}</label>`;
+                });
+            }
+            questionHTML += `</div><div class="feedback"></div><button class="btn" style="margin-top:15px;" onclick="checkAnswer()">Trả Lời</button></div>`;
+            container.innerHTML = questionHTML;
+        }
+
+        function toggleTrueFalse(buttonEl, qIndex, optionIndex) {
+            qIndex = parseInt(qIndex);
+            optionIndex = parseInt(optionIndex);
+            
+            if (!appState.trueFalseAnswers[qIndex]) {
+                appState.trueFalseAnswers[qIndex] = {};
+            }
+
+            const currentChoice = appState.trueFalseAnswers[qIndex][optionIndex];
+
+            let newChoice;
+            if (currentChoice === undefined) {
+                newChoice = true; // unset -> true
+            } else if (currentChoice === true) {
+                newChoice = false; // true -> false
+            } else { // currentChoice === false
+                newChoice = undefined; // false -> unset
+            }
+
+            if (newChoice === undefined) {
+                delete appState.trueFalseAnswers[qIndex][optionIndex];
+            } else {
+                appState.trueFalseAnswers[qIndex][optionIndex] = newChoice;
+            }
+
+            // Update button appearance
+            buttonEl.classList.remove('selected-true', 'selected-false');
+            if (newChoice === true) {
+                buttonEl.textContent = 'Đúng';
+                buttonEl.classList.add('selected-true');
+            } else if (newChoice === false) {
+                buttonEl.textContent = 'Sai';
+                buttonEl.classList.add('selected-false');
+            } else {
+                buttonEl.textContent = 'Chọn';
+            }
+        }
+
+        function checkAnswer() {
+            const q = appState.currentQuiz[appState.currentQuestionIndex];
+            const container = document.getElementById(`q-${appState.currentQuestionIndex}`);
+            const feedbackDiv = container.querySelector('.feedback');
+            const optionPrefixRegex = /^\s*\*?\s*[A-Za-z]{1,2}[.)]/;
+            let isCorrect = false;
+
+            const submitButton = container.querySelector('button.btn');
+            submitButton.textContent = 'Câu Tiếp Theo';
+            submitButton.setAttribute('onclick', 'skipToNextQuestion()');
+            
+            if (q.type === 'short_answer') {
+                const userInputField = container.querySelector(`#short-answer-input-${appState.currentQuestionIndex}`);
+                const userAnswer = userInputField.value.trim();
+                userInputField.disabled = true;
+                isCorrect = q.dap_an_dung.some(ans => ans.trim().toLowerCase() === userAnswer.toLowerCase());
+            } else if (q.type === 'true_false') {
+                 const userSelections = appState.trueFalseAnswers[appState.currentQuestionIndex] || {};
+                 let allCorrect = true;
+                 if (Object.keys(userSelections).length !== q.lua_chon.length) {
+                    allCorrect = false;
+                 } else {
+                    for(let i = 0; i < q.lua_chon.length; i++) {
+                        const option = q.lua_chon[i];
+                        const isStatementActuallyCorrect = option.trim().startsWith('*');
+                        const userChoice = userSelections[i];
+
+                        if (userChoice !== isStatementActuallyCorrect) {
+                            allCorrect = false;
+                            break;
+                        }
+                    }
+                 }
+                isCorrect = allCorrect;
+
+                const optionsOnScreen = container.querySelectorAll('.tf-option');
+                const originalOptionsOrder = q.lua_chon;
+                
+                optionsOnScreen.forEach((optionDiv, screenIndex) => {
+                    let originalIndex;
+                    if(appState.isShuffled) {
+                        originalIndex = appState.shuffledOptionsMap[appState.currentQuestionIndex][screenIndex];
+                    } else {
+                        originalIndex = screenIndex;
+                    }
+                    
+                    const isStatementActuallyCorrect = originalOptionsOrder[originalIndex].trim().startsWith('*');
+                    const userChoice = userSelections[originalIndex];
+                    
+                    optionDiv.style.borderWidth = '2px';
+                    if (userChoice === isStatementActuallyCorrect) {
+                        optionDiv.style.borderColor = 'var(--success-color)';
+                    } else {
+                        optionDiv.style.borderColor = 'var(--danger-color)';
+                    }
+                    
+                    const button = optionDiv.querySelector('.tf-btn');
+                    button.disabled = true;
+                    button.classList.remove('selected-true', 'selected-false');
+                    if (isStatementActuallyCorrect) {
+                        button.textContent = 'Đúng';
+                        button.classList.add('selected-true');
+                    } else {
+                        button.textContent = 'Sai';
+                        button.classList.add('selected-false');
+                    }
+                });
+            } else {
+                const getCleanContent = text => text.replace(optionPrefixRegex, '').trim();
+                let selected = Array.from(container.querySelectorAll('input:checked')).map(el => el.value);
+                container.querySelectorAll('input').forEach(el => el.disabled = true);
+                const cleanCorrectAnswers = q.dap_an_dung.map(getCleanContent);
+                const cleanSelectedContents = selected.map(getCleanContent);
+                isCorrect = cleanSelectedContents.length === cleanCorrectAnswers.length && cleanSelectedContents.sort().every((val, index) => val === cleanCorrectAnswers.sort()[index]);
+                container.querySelectorAll('label').forEach(label => {
+                    const input = label.querySelector('input');
+                    if (q.dap_an_dung.some(correct_ans => getCleanContent(correct_ans) === getCleanContent(input.value))) {
+                        label.style.backgroundColor = '#d4edda';
+                    } else if (input.checked) {
+                        label.style.backgroundColor = '#f8d7da';
+                    }
+                });
+            }
+
+            if (isCorrect) {
+                appState.score++;
+                if (correctAnswerSound && !appState.isMasterMuted && !appState.isCorrectSoundMuted) correctAnswerSound.play().catch(e => console.log("Lỗi âm thanh đúng", e));
+            } else {
+                if (incorrectAnswerSound && !appState.isMasterMuted && !appState.isIncorrectSoundMuted) incorrectAnswerSound.play().catch(e => console.log("Lỗi âm thanh sai", e));
+            }
+            feedbackDiv.innerHTML = `<strong style="color: ${isCorrect ? 'var(--success-color)' : 'var(--danger-color)'};">${isCorrect ? 'Đúng' : 'Sai'}!</strong>`;
+            if (!isCorrect && q.type !== 'true_false') {
+                const correctAnswersHTML = q.dap_an_dung.map(ans => parseContentWithMedia(ans.replace(/^\*/, ''))).join('; ');
+                feedbackDiv.innerHTML += `<p>Đáp án đúng: <span style="color: var(--success-color);">${correctAnswersHTML}</span></p>`;
+            }
+
+            if (appState.isAutoAdvanceEnabled) {
+                appState.feedbackTimeoutId = setTimeout(nextQuestion, 2000);
+            }
+        }
+
+        function skipToNextQuestion() {
+            if (appState.feedbackTimeoutId) {
+                clearTimeout(appState.feedbackTimeoutId);
+                appState.feedbackTimeoutId = null;
+            }
+            nextQuestion();
+        }
+
+        function nextQuestion() {
+            if (appState.feedbackTimeoutId) {
+                clearTimeout(appState.feedbackTimeoutId);
+                appState.feedbackTimeoutId = null;
+            }
+            appState.currentQuestionIndex++;
+            displayQuestion();
+        }
+
+        function submitEarly() {
+            if (confirm('Bạn có chắc muốn nộp bài sớm không?')) {
+                showResults();
+            }
+        }
+        
+        function showResults() {
+            appState.isQuizStarted = false;
+            controlBackgroundMusic();
+            document.getElementById('quiz-live-container').innerHTML = '';
+            const resultsContainer = document.getElementById('results-container');
+            resultsContainer.style.display = 'block';
+            document.getElementById('final-score').innerHTML = `Bạn đã đúng <strong>${appState.score} / ${appState.currentQuiz.length}</strong> câu!`;
+            document.getElementById('retry-btn').style.display = 'inline-block';
+            document.getElementById('submit-early-btn').style.display = 'none';
+        }
+
+        function toggleShuffle() {
+            appState.isShuffled = !appState.isShuffled;
+            document.getElementById('menu-shuffle-btn').textContent = `Trộn câu hỏi và đáp án: ${appState.isShuffled ? 'Bật' : 'Tắt'}`;
+        }
+        
+        function escapeHtml(text) {
+            if (typeof text !== 'string') return '';
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+        
+        function isBase64(str) {
+            if (typeof str !== 'string' || str.length < 20) return false;
+            const cleanedStr = str.replace(/\s/g, '');
+            const base64Regex = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
+            return base64Regex.test(cleanedStr);
+        }
+
+        function parseContentWithMedia(text) {
+            if (typeof text !== 'string' || !text) return '';
+            let rawHtml = escapeHtml(text).replace(/\n/g, '<br />');
+            rawHtml = rawHtml.replace(/#\{([^}]+?)\}#/g, (match, content) => {
+                const cleanedContent = content.trim();
+                if (cleanedContent.startsWith('res/')) {
+                    const safePath = cleanedContent.replace(/[^A-Za-z0-9_./-]/g, '');
+                    return `<img src="${safePath}" alt="Embedded Content" class="question-image">`;
+                }
+                if (isBase64(cleanedContent)) {
+                    return `<img src="data:image/png;base64,${cleanedContent}" alt="Embedded Content" class="question-image">`;
+                }
+                return match;
+            });
+            if (typeof katex !== 'undefined' && katex) {
+                rawHtml = rawHtml.replace(/\$\$([\s\S]+?)\$\$/g, (match, formula) => {
+                    try { return katex.renderToString(formula, { displayMode: true, throwOnError: false }); } catch (e) { return match; }
+                });
+                rawHtml = rawHtml.replace(/\$([\s\S]+?)\$/g, (match, formula) => {
+                    if (match.startsWith('$') || match.endsWith('$')) return match;
+                    try { return katex.renderToString(formula, { displayMode: false, throwOnError: false }); } catch (e) { return match; }
+                });
+            }
+            if (typeof DOMPurify !== 'undefined') {
+                return DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['img'], ADD_ATTR: ['src', 'alt', 'style', 'class'] });
+            }
+            return rawHtml;
+        }
+    </script>
+</body>
+</html>
